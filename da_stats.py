@@ -50,9 +50,11 @@ def cfg(name, default=None):
 
 # ---------- HTTP ----------
 
-def http_json(url, data=None, retries=5):
+def http_json(url, data=None, token=None, retries=5):
     for attempt in range(retries):
         req = urllib.request.Request(url, data=urllib.parse.urlencode(data).encode() if data else None)
+        if token:  # OAuth 2.1 : jeton dans l'en-tête, jamais dans l'URL
+            req.add_header("Authorization", f"Bearer {token}")
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 return json.load(r)
@@ -76,7 +78,7 @@ class DA:
     def get(self, path, **params):
         q = urllib.parse.urlencode(params, doseq=True)
         time.sleep(0.3)  # reste poli avec l'API
-        return http_json(f"{API}{path}?{q}&access_token={self.token}")
+        return http_json(f"{API}{path}?{q}", token=self.token)
 
     def paged(self, path, limit, max_items=None, **params):
         offset, out = 0, []
