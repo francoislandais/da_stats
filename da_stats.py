@@ -152,9 +152,18 @@ def snapshot(con, da, username):
          st.get("profile_pageviews"), st.get("profile_comments"), watchers, friends, raw(prof)),
     )
 
-    gallery = da.paged("/gallery/all", 24, username=username)
-    ids = [d["deviationid"] for d in gallery]
-    by_id = {d["deviationid"]: d for d in gallery}
+    by_id = {d["deviationid"]: d for d in
+             da.paged("/gallery/all", 24, username=username, mature_content="true")}
+    print(f"  gallery/all : {len(by_id)} œuvres (profil annonce {st.get('user_deviations')})")
+    try:  # second passage par les dossiers, pour ce que gallery/all ne renvoie pas
+        folders = da.paged("/gallery/folders", 50, username=username, mature_content="true")
+        for f in folders:
+            for d in da.paged(f"/gallery/{f['folderid']}", 24, username=username, mature_content="true"):
+                by_id.setdefault(d["deviationid"], d)
+        print(f"  + {len(folders)} dossiers : {len(by_id)} œuvres au total")
+    except RuntimeError as e:
+        print(f"  ! dossiers: {e}", file=sys.stderr)
+    ids = list(by_id)
 
     n = 0
     for i in range(0, len(ids), 50):

@@ -33,8 +33,7 @@
   th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
   th { color: var(--muted); font-weight: 500; font-size: .8rem; cursor: pointer; user-select: none; }
   th:first-child, td:first-child { text-align: left; }
-  td.t { display: flex; align-items: center; gap: 10px; max-width: 360px; }
-  td.t img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; background: var(--line); flex: none; }
+  td.t { max-width: 360px; }
   td.t a { color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; }
   td.t a:hover { text-decoration: underline; }
   tr.sel { background: color-mix(in srgb, var(--accent) 12%, transparent); }
@@ -141,8 +140,7 @@ function rows() {
   });
   document.getElementById("rows").innerHTML = list.map(d => `
     <tr data-id="${d.id}" class="${d.id === selected ? "sel" : ""}">
-      <td class="t">${d.thumb ? `<img loading="lazy" src="${d.thumb}" alt="">` : `<img alt="">`}
-        <a href="${d.url || "#"}" target="_blank" rel="noopener">${(d.title || "Sans titre").replace(/</g, "&lt;")}</a></td>
+      <td class="t"><a href="${d.url || "#"}" target="_blank" rel="noopener">${(d.title || "Sans titre").replace(/</g, "&lt;")}</a></td>
       <td>${d.published ? day(d.published) : "—"}</td>
       <td>${fmt(d.views)}</td><td>${fmt(d.favourites)}</td><td>${fmt(d.comments)}</td><td>${fmt(d.downloads)}</td>
       <td>${delta(d.dViews)}</td><td>${delta(d.dFav)}</td></tr>`).join("");
