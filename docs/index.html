@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stats DeviantArt</title>
+<style>
+  :root {
+    --bg: #f6f7f5; --card: #fff; --ink: #1c2420; --muted: #66726b; --line: #e1e6e2;
+    --accent: #05a37a; --up: #05a37a; --down: #d6453d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121715; --card: #1b221f; --ink: #e8eeea; --muted: #8d9a93; --line: #2a3430; --accent: #2fd1a1; --up: #2fd1a1; --down: #ff7b72; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { margin: 0; font-size: 1.5rem; }
+  .sub { color: var(--muted); margin: 4px 0 24px; font-size: .9rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .card .l { color: var(--muted); font-size: .8rem; }
+  .card .v { font-size: 1.6rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .d { font-size: .8rem; font-variant-numeric: tabular-nums; }
+  .d.up { color: var(--up); } .d.down { color: var(--down); }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .panel h2 { margin: 0 0 12px; font-size: 1rem; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  select, input { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font: inherit; }
+  .chart { position: relative; height: 260px; }
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; font-size: .8rem; cursor: pointer; user-select: none; }
+  th:first-child, td:first-child { text-align: left; }
+  td.t { display: flex; align-items: center; gap: 10px; max-width: 360px; }
+  td.t img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; background: var(--line); flex: none; }
+  td.t a { color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; }
+  td.t a:hover { text-decoration: underline; }
+  tr.sel { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  tbody tr { cursor: pointer; }
+  #empty { color: var(--muted); padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Stats DeviantArt</h1>
+  <div class="sub" id="sub">Chargement…</div>
+  <div id="empty" hidden>Aucune donnée pour l'instant. Lancez le workflow « Relevé DeviantArt » dans l'onglet Actions.</div>
+
+  <div id="app" hidden>
+    <div class="cards" id="cards"></div>
+
+    <div class="panel">
+      <div class="row">
+        <h2 style="margin:0">Évolution du profil</h2>
+        <select id="metric">
+          <option value="watchers">Followers</option>
+          <option value="pageviews">Vues du profil</option>
+          <option value="deviations">Œuvres</option>
+          <option value="favourites">Favoris donnés</option>
+          <option value="comments">Commentaires postés</option>
+          <option value="profile_comments">Commentaires du profil</option>
+          <option value="friends">Suivis</option>
+        </select>
+      </div>
+      <div class="chart"><canvas id="profileChart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <h2 style="margin:0">Œuvres</h2>
+        <input id="filter" type="search" placeholder="Filtrer par titre ou tag">
+        <span class="sub" style="margin:0">Cliquez une ligne pour voir son historique.</span>
+      </div>
+      <div class="chart" id="devChartBox" hidden style="margin-bottom:16px"><canvas id="devChart"></canvas></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th data-k="title">Titre</th><th data-k="published">Publiée</th>
+            <th data-k="views">Vues</th><th data-k="favourites">Favoris</th>
+            <th data-k="comments">Com.</th><th data-k="downloads">DL</th>
+            <th data-k="dViews">Δ vues</th><th data-k="dFav">Δ favoris</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const LABELS = { deviations: "Œuvres", watchers: "Followers", pageviews: "Vues du profil",
+  favourites: "Favoris donnés", comments: "Commentaires postés", profile_comments: "Commentaires du profil", friends: "Suivis" };
+const fmt = n => n == null ? "—" : n.toLocaleString("fr-FR");
+const day = ts => new Date(ts * 1000).toLocaleDateString("fr-FR");
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const delta = d => d ? `<span class="d ${d > 0 ? "up" : "down"}">${d > 0 ? "+" : ""}${fmt(d)}</span>` : "";
+
+let data, profileChart, devChart, sortKey = "favourites", sortDir = -1, selected = null;
+
+function lineChart(canvas, old, label, points) {
+  if (old) old.destroy();
+  return new Chart(canvas, {
+    type: "line",
+    data: { labels: points.map(p => new Date(p[0] * 1000)), datasets: [{
+      label, data: points.map(p => p[1]), borderColor: css("--accent"), backgroundColor: css("--accent") + "22",
+      fill: true, tension: .25, pointRadius: points.length > 40 ? 0 : 3 }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { x: { type: "category", ticks: { maxTicksLimit: 8, callback(v) { return day(points[v][0]); } }, grid: { display: false } },
+                y: { ticks: { precision: 0 }, grid: { color: css("--line") } } } }
+  });
+}
+
+function drawProfile() {
+  const m = document.getElementById("metric").value;
+  const pts = data.profile.filter(p => p[m] != null).map(p => [p.ts, p[m]]);
+  profileChart = lineChart(document.getElementById("profileChart"), profileChart, LABELS[m], pts);
+}
+
+function cards() {
+  const cur = data.profile.at(-1), prev = data.profile.at(-2) || {};
+  const d0 = data.profile.find(p => p.ts >= cur.ts - 7 * 86400) || data.profile[0];
+  document.getElementById("cards").innerHTML = Object.keys(LABELS).map(k => `
+    <div class="card"><div class="l">${LABELS[k]}</div><div class="v">${fmt(cur[k])}</div>
+    <div>${delta(cur[k] != null && prev[k] != null ? cur[k] - prev[k] : 0)}
+    <span class="d" style="color:var(--muted)">${d0 !== cur && cur[k] != null && d0[k] != null ? " · 7 j : " + (cur[k] - d0[k] >= 0 ? "+" : "") + fmt(cur[k] - d0[k]) : ""}</span></div></div>`).join("");
+}
+
+function rows() {
+  const q = document.getElementById("filter").value.toLowerCase();
+  const list = data.deviations.map(d => {
+    const h = d.history, a = h.at(-1) || [], b = h.at(-2) || [];
+    return { ...d, views: a[1], favourites: a[2], comments: a[3], downloads: a[4],
+      dViews: b.length ? (a[1] ?? 0) - (b[1] ?? 0) : 0, dFav: b.length ? (a[2] ?? 0) - (b[2] ?? 0) : 0 };
+  }).filter(d => !q || (d.title || "").toLowerCase().includes(q) || (d.tags || "").toLowerCase().includes(q));
+  list.sort((x, y) => {
+    const a = x[sortKey] ?? -1, b = y[sortKey] ?? -1;
+    return (typeof a === "string" ? a.localeCompare(b) : a - b) * sortDir;
+  });
+  document.getElementById("rows").innerHTML = list.map(d => `
+    <tr data-id="${d.id}" class="${d.id === selected ? "sel" : ""}">
+      <td class="t">${d.thumb ? `<img loading="lazy" src="${d.thumb}" alt="">` : `<img alt="">`}
+        <a href="${d.url || "#"}" target="_blank" rel="noopener">${(d.title || "Sans titre").replace(/</g, "&lt;")}</a></td>
+      <td>${d.published ? day(d.published) : "—"}</td>
+      <td>${fmt(d.views)}</td><td>${fmt(d.favourites)}</td><td>${fmt(d.comments)}</td><td>${fmt(d.downloads)}</td>
+      <td>${delta(d.dViews)}</td><td>${delta(d.dFav)}</td></tr>`).join("");
+}
+
+function showDev(id) {
+  selected = id;
+  const d = data.deviations.find(x => x.id === id);
+  document.getElementById("devChartBox").hidden = false;
+  devChart = lineChart(document.getElementById("devChart"), devChart, "Vues — " + d.title, d.history.map(h => [h[0], h[1]]));
+  rows();
+}
+
+async function main() {
+  const res = await fetch("data.json", { cache: "no-store" });
+  if (!res.ok) throw new Error("data.json introuvable");
+  data = await res.json();
+  if (!data.profile.length) return document.getElementById("empty").hidden = false;
+  document.getElementById("title").textContent = "Stats DeviantArt — " + data.username;
+  document.getElementById("sub").textContent =
+    `Dernier relevé : ${new Date(data.profile.at(-1).ts * 1000).toLocaleString("fr-FR")} · ${data.profile.length} relevés`;
+  document.getElementById("app").hidden = false;
+  cards(); drawProfile(); rows();
+  document.getElementById("metric").onchange = drawProfile;
+  document.getElementById("filter").oninput = rows;
+  document.getElementById("rows").onclick = e => {
+    if (e.target.closest("a")) return;
+    const tr = e.target.closest("tr"); if (tr) showDev(tr.dataset.id);
+  };
+  document.querySelectorAll("th").forEach(th => th.onclick = () => {
+    const k = th.dataset.k; sortDir = k === sortKey ? -sortDir : -1; sortKey = k; rows();
+  });
+}
+main().catch(e => { document.getElementById("sub").textContent = "Erreur : " + e.message; });
+</script>
+</body>
+</html>
