@@ -24,7 +24,7 @@ jobs:
         env:
           DA_CLIENT_ID: ${{ secrets.DA_CLIENT_ID }}
           DA_CLIENT_SECRET: ${{ secrets.DA_CLIENT_SECRET }}
-          DA_USERNAME: ${{ vars.DA_USERNAME }}
+          DA_USERNAME: ${{ vars.DA_USERNAME || secrets.DA_USERNAME }}
           DA_DB: data/da_stats.db
           DA_STORE_RAW: "0"
         run: |

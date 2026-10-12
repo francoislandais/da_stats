@@ -42,8 +42,8 @@ def load_env():
 
 
 def cfg(name, default=None):
-    v = os.environ.get(name, default)
-    if v is None:
+    v = os.environ.get(name) or default
+    if not v:
         sys.exit(f"Variable manquante : {name}")
     return v
 
