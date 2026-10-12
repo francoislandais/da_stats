@@ -1,3 +1,3 @@
 .env
 __pycache__/
-da_stats.db
+/da_stats.db

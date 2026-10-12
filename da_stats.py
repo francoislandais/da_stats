@@ -85,6 +85,9 @@ class DA:
         while True:
             page = self.get(path, offset=offset, limit=limit, **params)
             out.extend(page.get("results", []))
+            print(f"    {path} offset={offset}: {len(page.get('results', []))} résultats, "
+                  f"has_more={page.get('has_more')}, next_offset={page.get('next_offset')}, "
+                  f"clés={sorted(k for k in page if k != 'results')}")
             if not page.get("has_more") or (max_items and len(out) >= max_items):
                 return out
             offset = page.get("next_offset", offset + limit)
