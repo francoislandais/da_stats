@@ -1,8 +1,9 @@
 name: Relevé DeviantArt
 
 on:
-  schedule:
-    - cron: "17 */6 * * *"
+  # Relevé automatique désactivé : décommenter pour le réactiver
+  # schedule:
+  #   - cron: "17 */6 * * *"
   workflow_dispatch:
 
 permissions:

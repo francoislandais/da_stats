@@ -50,7 +50,7 @@ def cfg(name, default=None):
 
 # ---------- HTTP ----------
 
-def http_json(url, data=None, token=None, retries=5):
+def http_json(url, data=None, token=None, retries=6):
     for attempt in range(retries):
         req = urllib.request.Request(url, data=urllib.parse.urlencode(data).encode() if data else None)
         if token:  # OAuth 2.1 : jeton dans l'en-tête, jamais dans l'URL
@@ -60,7 +60,7 @@ def http_json(url, data=None, token=None, retries=5):
                 return json.load(r)
         except urllib.error.HTTPError as e:
             if e.code in (429, 500, 502, 503) and attempt < retries - 1:
-                time.sleep(2 ** attempt * 2)
+                time.sleep(2 ** attempt * 3)
                 continue
             raise RuntimeError(f"HTTP {e.code} sur {url}: {e.read()[:300]!r}")
     raise RuntimeError("unreachable")
